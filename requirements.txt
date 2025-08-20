@@ -1,0 +1,5 @@
+--extra-index-url https://download.pytorch.org/whl/cu129
+transformers==4.27.4
+simpletransformers==0.61.13
+rdkit==2025.3.5
+torch==2.8.0
