@@ -8,7 +8,7 @@ import json
 def get_dataset_ecnp(args):
     data_name = args.data_name if not args.test else args.test
     if data_name == "ecmap":
-        data = pd.read_csv("data/ECmap/all_reactions.csv")
+        data = pd.read_csv("../data/ECmap/all_reactions.csv")
         data = data.drop_duplicates(["rdkit_reactants", "ec_num"])
     else:
         raise ValueError(f"Unknown dataset: {data_name}")

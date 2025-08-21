@@ -33,7 +33,7 @@ def main(args):
     ec_to_i = split["ec_to_i"]
     moe_split = ecnp_split_to_moe(data, split, config, ec_to_i)
     train_file = write_to_file(f"../data/pretrain_txt/ecnp_train_{args.seed}.txt", moe_split["train"])
-    eval_file = write_to_file(f"../data/pretrain_txt/ecnp_eval_{args.seed}.txt", moe_split["eval"])
+    eval_file = write_to_file(f"../data/pretrain_txt/ecnp_eval_{args.seed}.txt", moe_split["val"])
     test_file = write_to_file(f"../data/pretrain_txt/ecnp_test_{args.seed}.txt", moe_split["test"])
 
     args = {'config': config,
