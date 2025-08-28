@@ -14,13 +14,13 @@ from BECPred.utils import get_arguments, expand_search_space, split_ecnp
 logger = logging.getLogger(__name__)
 
 
-def format_data(reactants, labels, i_to_ec):
+def format_data(reactants, labels):
     df = {"text": [], "labels": []}
     for reaction, enzyme_enc in zip(reactants, labels):
         enzyme_enc = np.array(enzyme_enc)
         for ec_id in np.nonzero(enzyme_enc)[0]:
             df["text"].append(reaction)
-            df["labels"].append(i_to_ec[ec_id.item()])
+            df["labels"].append(ec_id.item())
     return pd.DataFrame(df)
 
 
@@ -29,9 +29,9 @@ def main(args):
     split = split_ecnp(config, args)
     ec_to_i = split["ec_to_i"]
     i_to_ec = {i: ec for ec, i in ec_to_i.items()}
-    final_train_df = format_data(split["train"], split["e_train"], i_to_ec)
-    eval_df = format_data(split["val"], split["e_val"], i_to_ec)
-    test_df = format_data(split["test"], split["e_test"], i_to_ec)
+    final_train_df = format_data(split["train"], split["e_train"])
+    eval_df = format_data(split["val"], split["e_val"])
+    test_df = format_data(split["test"], split["e_test"])
     # df = pd.read_pickle('../data/final_df_ec.pkl')
     # print(df[['rxn', 'class_id']].head())
     # train_df = df.loc[df['split']=='train']
@@ -44,7 +44,7 @@ def main(args):
     # final_train_df = final_train_df.sample(frac=1.)
     output_dir = f'../models/refine_{args.seed}'
     model_args = {
-        'wandb_project': None, 'num_train_epochs': 1, 'overwrite_output_dir': True,
+        'wandb_project': None, 'num_train_epochs': 48, 'overwrite_output_dir': True,
         'learning_rate': 1e-5, 'gradient_accumulation_steps': 1,
         'regression': False, "num_labels": 155, "fp16": False,
         "evaluate_during_training": True, 'manual_seed': args.seed,
