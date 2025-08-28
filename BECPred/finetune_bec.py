@@ -1,3 +1,7 @@
+import json
+import os.path
+
+import numpy as np
 import pandas as pd
 import torch
 import logging
@@ -9,13 +13,25 @@ from BECPred.utils import get_arguments, expand_search_space, split_ecnp
 
 logger = logging.getLogger(__name__)
 
+
+def format_data(reactants, labels, i_to_ec):
+    df = {"text": [], "labels": []}
+    for reaction, enzyme_enc in zip(reactants, labels):
+        enzyme_enc = np.array(enzyme_enc)
+        for ec_id in np.nonzero(enzyme_enc)[0]:
+            df["text"].append(reaction)
+            df["labels"].append(i_to_ec[ec_id.item()])
+    return pd.DataFrame(df)
+
+
 def main(args):
     config = {"overseer_min": 40, "overseer_lvl": 3}
     split = split_ecnp(config, args)
     ec_to_i = split["ec_to_i"]
-    final_train_df = pd.DataFrame({"text": split["train"], "labels": [ec_to_i[ec] for ec in split["e_train"]]})
-    eval_df = pd.DataFrame({"text": split["val"], "labels": [ec_to_i[ec] for ec in split["e_val"]]})
-    test_df = pd.DataFrame({"text": split["test"], "labels": [ec_to_i[ec] for ec in split["e_test"]]})
+    i_to_ec = {i: ec for ec, i in ec_to_i.items()}
+    final_train_df = format_data(split["train"], split["e_train"], i_to_ec)
+    eval_df = format_data(split["val"], split["e_val"], i_to_ec)
+    test_df = format_data(split["test"], split["e_test"], i_to_ec)
     # df = pd.read_pickle('../data/final_df_ec.pkl')
     # print(df[['rxn', 'class_id']].head())
     # train_df = df.loc[df['split']=='train']
@@ -26,21 +42,20 @@ def main(args):
     # corresponding_labels = train_df.class_id.values.tolist()
     # final_train_df = pd.DataFrame({'text': all_train_reactions, 'labels': corresponding_labels})
     # final_train_df = final_train_df.sample(frac=1.)
-
+    output_dir = f'../models/refine_{args.seed}'
     model_args = {
-        'wandb_project': None, 'num_train_epochs': 48, 'overwrite_output_dir': True,
+        'wandb_project': None, 'num_train_epochs': 1, 'overwrite_output_dir': True,
         'learning_rate': 1e-5, 'gradient_accumulation_steps': 1,
-        'regression': False, "num_labels": 308, "fp16": False,
+        'regression': False, "num_labels": 155, "fp16": False,
         "evaluate_during_training": True, 'manual_seed': args.seed,
         "max_seq_length": 512, "train_batch_size": 8,"warmup_ratio": 0.00,
-        'output_dir': '../out/bert_class_ec_final',
+        'output_dir': output_dir,
         'thread_count': 4,
         }
 
     # optional
-    model_path =  pkg_resources.resource_filename("models/transformers/bert_pretrain")
-    print(model_path)
-    model = SmilesClassificationModel("bert", model_path, num_labels=308, args=model_args, use_cuda=torch.cuda.is_available())
+    model_path = f"../models/pretrain_{args.seed}/"
+    model = SmilesClassificationModel("bert", model_path, num_labels=model_args["num_labels"], args=model_args, use_cuda=torch.cuda.is_available())
 
     # optional
     # train_model_path =  pkg_resources.resource_filename("best_model")
@@ -54,8 +69,13 @@ def main(args):
     def rec_multiclass(labels, preds):
           return sklearn.metrics.recall_score(labels, preds, average='weighted')
 
-    model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass, acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
+    model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass, acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass, args={"process_count": 20})
     result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass, acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
+    print(result)
+    print(model_outputs)
+    print(type(model_outputs[0]))
+    with open(os.path.join(output_dir, "test_results.json"), "w") as t_file:
+        json.dump({"result": result, "model_outputs": model_outputs}, t_file)
 
 
 if __name__ == "__main__":
