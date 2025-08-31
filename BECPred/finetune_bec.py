@@ -69,13 +69,20 @@ def main(args):
     def rec_multiclass(labels, preds):
           return sklearn.metrics.recall_score(labels, preds, average='weighted')
 
-    model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass, acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass, args={"process_count": 20})
-    result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass, acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
-    print(result)
-    print(model_outputs)
-    print(type(model_outputs[0]))
+    train_args = {"process_count": 20, "save_model_every_epoch": False, "save_steps": 4000}
+    model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass,
+                      acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef,
+                      f1=f1_multiclass, args=train_args)
+    result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass,
+                                                                acc=sklearn.metrics.accuracy_score,
+                                                                mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
+    for key, value in result:
+        try:
+            result[key] = value.item()
+        except:
+            pass
     with open(os.path.join(output_dir, "test_results.json"), "w") as t_file:
-        json.dump({"result": result, "model_outputs": model_outputs}, t_file)
+        json.dump({"result": result, "model_outputs": model_outputs.tolist()}, t_file)
 
 
 if __name__ == "__main__":
