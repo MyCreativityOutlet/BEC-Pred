@@ -47,7 +47,7 @@ def main(args):
         'wandb_project': None, 'num_train_epochs': 48, 'overwrite_output_dir': True,
         'learning_rate': 1e-5, 'gradient_accumulation_steps': 1,
         'regression': False, "num_labels": 155, "fp16": False,
-        "evaluate_during_training": True, 'manual_seed': args.seed,
+        "evaluate_during_training": False, 'manual_seed': args.seed,
         "max_seq_length": 512, "train_batch_size": 8,"warmup_ratio": 0.00,
         'output_dir': output_dir,
         'thread_count': 4,
@@ -69,14 +69,14 @@ def main(args):
     def rec_multiclass(labels, preds):
           return sklearn.metrics.recall_score(labels, preds, average='weighted')
 
-    train_args = {"process_count": 20, "save_model_every_epoch": False, "save_steps": 4000}
+    train_args = {"process_count": 20, "save_model_every_epoch": False, "save_steps": 50000, "save_eval_checkpoints": False}
     model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass,
                       acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef,
                       f1=f1_multiclass, args=train_args)
     result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass,
                                                                 acc=sklearn.metrics.accuracy_score,
                                                                 mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
-    for key, value in result:
+    for key, value in result.items():
         try:
             result[key] = value.item()
         except:
@@ -88,7 +88,7 @@ def main(args):
 if __name__ == "__main__":
     arguments = get_arguments()
     if arguments.train_many:
-        search_space = {"seed": list(range(10))}
+        search_space = {"seed": list(range(6, 10))}
         search_space = expand_search_space(search_space)
         for search in search_space:
             for k, v in search.items():
