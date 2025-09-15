@@ -9,19 +9,9 @@ import pkg_resources
 import sklearn
 from rxnfp.models import SmilesClassificationModel
 
-from BECPred.utils import get_arguments, expand_search_space, split_ecnp
+from BECPred.utils import get_arguments, expand_search_space, split_ecnp, format_data
 
 logger = logging.getLogger(__name__)
-
-
-def format_data(reactants, labels):
-    df = {"text": [], "labels": []}
-    for reaction, enzyme_enc in zip(reactants, labels):
-        enzyme_enc = np.array(enzyme_enc)
-        for ec_id in np.nonzero(enzyme_enc)[0]:
-            df["text"].append(reaction)
-            df["labels"].append(ec_id.item())
-    return pd.DataFrame(df)
 
 
 def main(args):
@@ -88,7 +78,7 @@ def main(args):
 if __name__ == "__main__":
     arguments = get_arguments()
     if arguments.train_many:
-        search_space = {"seed": list(range(6, 10))}
+        search_space = {"seed": list(range(7, 10))}
         search_space = expand_search_space(search_space)
         for search in search_space:
             for k, v in search.items():

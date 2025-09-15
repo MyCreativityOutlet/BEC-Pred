@@ -1,5 +1,7 @@
 from argparse import ArgumentParser
 from itertools import product
+
+import numpy as np
 import pandas as pd
 import os
 import json
@@ -56,6 +58,16 @@ def ecnp_split_to_moe(data_frame, ecnp_split, config, ec_to_i):
     ecnp_split["train"], ecnp_split["val"], ecnp_split["test"] = train, val, test
     ecnp_split["e_train"], ecnp_split["e_val"], ecnp_split["e_test"] = e_train, e_val, e_test
     return ecnp_split
+
+
+def format_data(reactants, labels):
+    df = {"text": [], "labels": []}
+    for reaction, enzyme_enc in zip(reactants, labels):
+        enzyme_enc = np.array(enzyme_enc)
+        for ec_id in np.nonzero(enzyme_enc)[0]:
+            df["text"].append(reaction)
+            df["labels"].append(ec_id.item())
+    return pd.DataFrame(df)
 
 
 def get_arguments():
