@@ -21,11 +21,30 @@ def load_model(path):
     return SmilesClassificationModel("bert", path, use_cuda=torch.cuda.is_available(), args={"silent": True})
 
 
+def inference(args):
+    model_folder = "../models/refine_1_ecmap_final"
+    model = load_model(model_folder)
+    config = {"overseer_min": 40, "overseer_lvl": 3}
+    train_split = split_ecnp(config, args, test=False)
+    ec_to_i = train_split["ec_to_i"]
+    i_to_ec = {i: ec for ec, i in ec_to_i.items()}
+    split = split_ecnp(config, args, test=True)
+    split = split["train"] + split["val"] + split["test"]
+    y_pred = model.predict(split)
+    save_file = []
+    for smiles, pred, probs in zip(split, *y_pred):
+        pred = i_to_ec[pred]
+        probs = probs.tolist()
+        save_file.append([smiles, pred, probs])
+    with open(os.path.join(model_folder, f"{args.test}.json"), "w") as out_file:
+        json.dump(save_file, out_file)
+
+
 def evaluate(args):
     model = load_model("")
 
     df = pd.read_pickle('../data/final_df_ec.pkl')
-    df = df.loc[df['split']=='test']
+    df = df.loc[df['split'] == 'test']
     print(df[:5])
     test_df = df.rxn
     test_reactions = test_df.values.tolist()
@@ -40,24 +59,23 @@ def evaluate(args):
     y_pred = y_preds.values.tolist()
     y_pred = y_pred[0]
 
+    def f1_multiclass(y_true, y_pred):
+        return sklearn.metrics.f1_score(y_true, y_pred, average='weighted')
 
-    def f1_multiclass(y_true,y_pred):
-          return sklearn.metrics.f1_score(y_true,y_pred, average='weighted')
+    def prec_multiclass(y_true, y_pred):
+        return sklearn.metrics.precision_score(y_true, y_pred, average='weighted')
 
-    def prec_multiclass(y_true,y_pred):
-          return sklearn.metrics.precision_score(y_true,y_pred, average='weighted')
-
-    def rec_multiclass(y_true,y_pred):
-          return sklearn.metrics.recall_score(y_true,y_pred, average='weighted')
+    def rec_multiclass(y_true, y_pred):
+        return sklearn.metrics.recall_score(y_true, y_pred, average='weighted')
 
     # for y1_true, y1_pred in zip(y_true, y_pred):
-    prec=prec_multiclass(y_true,y_pred)
-    rec=rec_multiclass(y_true,y_pred)
-    acc=sklearn.metrics.accuracy_score(y_true,y_pred)
-    mcc=sklearn.metrics.matthews_corrcoef(y_true,y_pred)
-    f1=f1_multiclass(y_true,y_pred)
+    prec = prec_multiclass(y_true, y_pred)
+    rec = rec_multiclass(y_true, y_pred)
+    acc = sklearn.metrics.accuracy_score(y_true, y_pred)
+    mcc = sklearn.metrics.matthews_corrcoef(y_true, y_pred)
+    f1 = f1_multiclass(y_true, y_pred)
 
-    print(prec,rec,acc,mcc,f1)
+    print(prec, rec, acc, mcc, f1)
     # print(y_preds)
 
 
@@ -78,7 +96,7 @@ def runtime_evaluate(args):
                 train_data = all_train_data[:size * 50]
                 for i in trange(0, len(train_data), size):
                     start_time = time.time()
-                    _ = model.predict(train_data[i: i+size])
+                    _ = model.predict(train_data[i: i + size])
                     end_time = time.time() - start_time
                     times["BECPred"][size].append(end_time)
     except RuntimeError as e:
@@ -88,7 +106,8 @@ def runtime_evaluate(args):
 
 
 def main(args):
-    runtime_evaluate(args)
+    # evaluate(args)
+    inference(args)
     pass
 
 

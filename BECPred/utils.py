@@ -17,10 +17,10 @@ def get_dataset_ecnp(args):
     return data
 
 
-def split_ecnp(config, args):
+def split_ecnp(config, args, test=False):
     ec_lvl = config.get("overseer_lvl", 3)
     ec_min_size = config.get("overseer_min", 40)
-    splits_path = f"../data/ecnp_kfold/{args.data_name}_{ec_lvl}_{ec_min_size}/"
+    splits_path = f"../data/ecnp_kfold/{args.data_name if not test else args.test}_{ec_lvl}_{ec_min_size}/"
     os.makedirs(splits_path, exist_ok=True)
     if os.path.exists(split_file := os.path.join(splits_path, f"{args.seed}.json")):
         with open(split_file) as s_file:
@@ -73,6 +73,7 @@ def format_data(reactants, labels):
 def get_arguments():
     parser = ArgumentParser()
     parser.add_argument("--data-name", type=str, default="ecmap", help="Which dataset to use, uspto, pubchem, envipath, baeyer")
+    parser.add_argument("--final-train", action="store_true", help="Whether to train on all data")
     parser.add_argument("--tokenizer", type=str, default="regex", help="Style of tokenizer, selfies, regex")
     parser.add_argument("--split-path", type=str, default="", help="Predetermined split file with train, val and test SMILES")
     parser.add_argument("--max-len", type=int, default=380, help="Maximum encoded length to consider")

@@ -22,6 +22,10 @@ def main(args):
     final_train_df = format_data(split["train"], split["e_train"])
     eval_df = format_data(split["val"], split["e_val"])
     test_df = format_data(split["test"], split["e_test"])
+    output_dir = f'../models/refine_{args.seed}_{args.data_name}'
+    if args.final_train:
+        final_train_df = pd.concat([final_train_df, test_df], ignore_index=True)
+        output_dir += "_final"
     # df = pd.read_pickle('../data/final_df_ec.pkl')
     # print(df[['rxn', 'class_id']].head())
     # train_df = df.loc[df['split']=='train']
@@ -32,11 +36,11 @@ def main(args):
     # corresponding_labels = train_df.class_id.values.tolist()
     # final_train_df = pd.DataFrame({'text': all_train_reactions, 'labels': corresponding_labels})
     # final_train_df = final_train_df.sample(frac=1.)
-    output_dir = f'../models/refine_{args.seed}'
+
     model_args = {
         'wandb_project': None, 'num_train_epochs': 48, 'overwrite_output_dir': True,
         'learning_rate': 1e-5, 'gradient_accumulation_steps': 1,
-        'regression': False, "num_labels": 155, "fp16": False,
+        'regression': False, "num_labels": len(ec_to_i), "fp16": False,
         "evaluate_during_training": False, 'manual_seed': args.seed,
         "max_seq_length": 512, "train_batch_size": 8,"warmup_ratio": 0.00,
         'output_dir': output_dir,
@@ -63,22 +67,23 @@ def main(args):
     model.train_model(final_train_df, eval_df=eval_df, prec=prec_multiclass, rec=rec_multiclass,
                       acc=sklearn.metrics.accuracy_score, mcc=sklearn.metrics.matthews_corrcoef,
                       f1=f1_multiclass, args=train_args)
-    result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass,
-                                                                acc=sklearn.metrics.accuracy_score,
-                                                                mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
-    for key, value in result.items():
-        try:
-            result[key] = value.item()
-        except:
-            pass
-    with open(os.path.join(output_dir, "test_results.json"), "w") as t_file:
-        json.dump({"result": result, "model_outputs": model_outputs.tolist()}, t_file)
+    if not args.final_train:
+        result, model_outputs, wrong_predictions = model.eval_model(test_df, prec=prec_multiclass, rec=rec_multiclass,
+                                                                    acc=sklearn.metrics.accuracy_score,
+                                                                    mcc=sklearn.metrics.matthews_corrcoef, f1=f1_multiclass)
+        for key, value in result.items():
+            try:
+                result[key] = value.item()
+            except:
+                pass
+        with open(os.path.join(output_dir, "test_results.json"), "w") as t_file:
+            json.dump({"result": result, "model_outputs": model_outputs.tolist()}, t_file)
 
 
 if __name__ == "__main__":
     arguments = get_arguments()
     if arguments.train_many:
-        search_space = {"seed": list(range(7, 10))}
+        search_space = {"seed": list(range(10))}
         search_space = expand_search_space(search_space)
         for search in search_space:
             for k, v in search.items():
